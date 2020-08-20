@@ -95,7 +95,6 @@ def bag_of_words(s, words):
             
     return bag
 
-
 def chat():
     print("Start talking with the bot (type quit to stop)!")
     while True:
