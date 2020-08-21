@@ -1,8 +1,12 @@
 {"intents": [
     {"tag": "greeting",
-     "patterns": ["Hi", "How are you", "Is anyone there?", "Hello", "Good day"],
+     "patterns": ["Hi", "Hello"],
      "responses": ["Hello, thanks for visiting", "Good to see you again", "Hi there, how can I help?"],
      "context_set": ""
+    },
+    {"tag": "identity",
+     "patterns": ["Who are you"],
+     "responses": ["My name is AmExBot :robot_face:, and I am here to help you with your travel plans :grinning:"]
     },
     {"tag": "goodbye",
      "patterns": ["Bye", "See you later", "Goodbye"],

@@ -4,6 +4,7 @@ from flask import Flask
 from slack import WebClient
 from slackeventsapi import SlackEventAdapter
 from onboarding_tutorial import OnboardingTutorial
+from ai_bot import DenseNeuralNet
 import ssl as ssl_lib
 import certifi
 
@@ -126,7 +127,7 @@ def update_pin(payload):
 
 
 # ============== Message Events ============= #
-# When a user sends a DM, the event type will be 'message'.
+# When a user sends a DM or a message in channel, the event type will be 'message'.
 # Here we'll link the message callback to the 'message' event.
 @slack_events_adapter.on("message")
 def message(payload):
@@ -142,6 +143,40 @@ def message(payload):
 
     if text and text.lower() == "start":
         return start_onboarding(user_id, channel_id)
+
+
+# ============== App_mention Events ============= #
+# When a user sends a message with mention "@amexbot", the event type will be 'app_mention'.
+# Here we'll link the message callback to the 'app_mention' event.
+@slack_events_adapter.on("app_mention")
+def ai_bot(payload):
+    """Respond using the ML model when the bot is mentioned with "@amexbot"
+    using the text
+    """
+    event = payload.get("event", {})
+
+    channel_id = event.get("channel")
+    user_id = event.get("user")
+    text = event.get("text")
+
+    # Create a new onboarding tutorial.
+    onboarding_tutorial = DenseNeuralNet(channel_id, text)
+
+    # Get the onboarding message payload
+    message = onboarding_tutorial.get_message_payload()
+
+    # Post the onboarding message in Slack
+    response = slack_web_client.chat_postMessage(**message)
+
+    # Capture the timestamp of the message we've just posted so
+    # we can use it to update the message after a user
+    # has completed an onboarding task.
+    onboarding_tutorial.timestamp = response["ts"]
+
+    # Store the message sent in onboarding_tutorials_sent
+    if channel_id not in onboarding_tutorials_sent:
+        onboarding_tutorials_sent[channel_id] = {}
+    onboarding_tutorials_sent[channel_id][user_id] = onboarding_tutorial
 
 
 if __name__ == "__main__":

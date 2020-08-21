@@ -89,3 +89,27 @@ plt.xlabel('epochs')
 plt.ylabel('accuracy')
 
 # %%
+import numpy
+from nltk import word_tokenize
+from nltk.stem.lancaster import LancasterStemmer
+stemmer = LancasterStemmer()
+from tensorflow import keras
+import random
+import pickle
+# %%
+with open("data/intents.pickle", "rb") as f:
+    words, labels, training, output = pickle.load(f)
+# %%
+training
+# %%
+output
+# %%
+from ai_bot import DenseNeuralNet
+# %%
+message = DenseNeuralNet("D0192RAS4MR", "<@U0192K8QJQJ> Hi!").get_message_payload()
+# %%
+from slack import WebClient
+import os
+slack_web_client = WebClient(token=os.environ['SLACK_BOT_TOKEN'])
+response = slack_web_client.chat_postMessage(**message)
+# %%

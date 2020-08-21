@@ -1,5 +1,5 @@
 #! /bin/bash 
-export SLACK_BOT_TOKEN="xoxb-1329965281392-1308654834834-fVDlEK9B1lGUG70OLc2w7IWk"
-export SLACK_SIGNING_SECRET="c4b5fe22cf37602df594cc708ecf792e"
-export BOTNAME="app"
+export SLACK_BOT_TOKEN="xoxb-xxx"
+export SLACK_SIGNING_SECRET="xxx"
+export BOTNAME="amexbot"
 
