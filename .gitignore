@@ -3,6 +3,8 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 .*
+test*
+set_env_var.txt
 
 # User-specific files
 *.rsuser
