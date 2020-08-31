@@ -1,15 +1,248 @@
-import numpy
+import numpy as np 
+import pandas as pd
+import matplotlib.pyplot as plt
+
+import re
+from nltk.corpus import stopwords
 from nltk import word_tokenize
+STOPWORDS = set(stopwords.words('english'))
 from nltk.stem.lancaster import LancasterStemmer
 stemmer = LancasterStemmer()
+from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
+
+from sklearn.model_selection import train_test_split
+from keras.models import Sequential, load_model
+from keras import Input,Model
+from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D, Dropout, Bidirectional, Flatten,GlobalAveragePooling1D
+from keras.callbacks import ModelCheckpoint
+
+from tqdm import tqdm
+import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.optimizers import SGD
+import tensorflow_hub as hub
+import bert
 import random
 import pickle
 import json
 
-class DenseNeuralNet:
+class LoadingData():
+    """Load data into a pandas DataFrame and preprocess it"""
+    def __init__(self,MAX_NB_WORDS = 10000,MAX_SEQUENCE_LENGTH = 250,verbose=1):
+        filename = 'data/intents.json'
+        json_file = json.load(open(filename))
+        # Explode the list of questions of the dataframe
+        self.data_frame = pd.DataFrame(json_file['intents'])[['tag','patterns']].explode('patterns')
+        # Tensorized features (dataset of questions)
+        patterns_series = self.data_frame['patterns'].apply(self._clean_text)
+        self.tokenizer = Tokenizer(num_words=MAX_NB_WORDS)
+        self.tokenizer.fit_on_texts(patterns_series.values)
+        word_index = self.tokenizer.word_index
+        if verbose ==1:
+            print('Found %s unique tokens.' % len(word_index))
+        self.X = self._tensorize(patterns_series,MAX_SEQUENCE_LENGTH=MAX_SEQUENCE_LENGTH,verbose=verbose)
+        # Tensorized label using dummy vectors (1 if is label else 0)
+        self.Y = pd.get_dummies(self.data_frame['tag']).values
+        if verbose==1:
+            print('Shape of label tensor:', self.Y.shape)
+        # Decoding an output vector into an intent label and then into a response TODO: make a method 
+        Y_to_label = np.sort(self.data_frame['tag'].unique())
+        self.cat_to_tag = dict(enumerate(Y_to_label))
+        self.tag_to_cat = {value:key for (key,value) in self.cat_to_tag.items()}
+        self.tag_to_response = pd.DataFrame(json_file['intents'])[['tag','responses']]
+        # Train - Test split
+        self.X_train,self.X_test,self.Y_train,self.Y_test = train_test_split(self.X,self.Y, test_size = 0.18, random_state = 42)
+
+    def _clean_text(self,text):
+        """Returns a lemmatized and cleaned text from raw data"""
+        REPLACE_BY_SPACE_RE = re.compile(r'[/(){}\[\]\|@,;]')
+        BAD_SYMBOLS_RE = re.compile('[^0-9a-z #+_]')
+        STOPWORDS = set(stopwords.words('english'))
+
+        text = text.lower() # lowercase text
+        text = REPLACE_BY_SPACE_RE.sub(' ', text) # replace REPLACE_BY_SPACE_RE symbols by space in text. substitute the matched string in REPLACE_BY_SPACE_RE with space.
+        text = BAD_SYMBOLS_RE.sub('', text) # remove symbols which are in BAD_SYMBOLS_RE from text. substitute the matched string in BAD_SYMBOLS_RE with nothing. 
+
+        text = ' '.join(stemmer.stem(word) for word in text.split() if word not in STOPWORDS) # remove stopwors from text
+        return text
+
+    def _tensorize(self,patterns_series,MAX_SEQUENCE_LENGTH = 250,verbose=1):
+        """Returns a 2D array from an iterable of text"""
+        X = self.tokenizer.texts_to_sequences(patterns_series.values)
+        X = pad_sequences(X, maxlen=MAX_SEQUENCE_LENGTH)
+        if verbose ==1:
+            print('Shape of data tensor:', X.shape)
+        return X
+
+class ModelFcnn():
+    """Fully connected Neural Network training methods"""
+    @staticmethod
+    def _train(X_train,Y_train,save_file='model/FCNN.h5',MAX_NB_WORDS = 10000,MAX_SEQUENCE_LENGTH = 250,
+               EMBEDDING_DIM = 128,epochs = 100,batch_size = 64,validation_split=0.2):
+        model = Sequential()
+        model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=X_train.shape[1]))
+        model.add(SpatialDropout1D(0.2))
+        model.add(Flatten())
+        model.add(Dense(64, activation = "relu"))
+        model.add(Dropout(0.5))
+        model.add(Dense(32, activation = "relu"))
+        model.add(Dropout(0.5))
+        model.add(Dense(Y_train.shape[1], activation='softmax'))
+        model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+        model.summary()
+
+        checkpoint = ModelCheckpoint(save_file, monitor='val_loss', verbose=1,
+                                     save_best_only=True, mode='min')
+
+        history = model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size,
+                            validation_split=validation_split,callbacks=[checkpoint])
+
+        return history
+    
+    def to_bag(self,X,MAX_NB_WORDS):
+        L=[]
+        for i in range(X.shape[0]):
+            a = np.bincount(X[i,:])[1:]
+            L.append(list(a) + [0 for i in range(MAX_NB_WORDS-len(a))])
+        return np.array(L)
+        
+
+class ModelLstm():
+    @staticmethod
+    def _train(X_train,Y_train,save_file='model/LSTM.h5',MAX_NB_WORDS = 10000,MAX_SEQUENCE_LENGTH = 250,
+               EMBEDDING_DIM = 128,epochs = 100,batch_size = 64,validation_split=0.2):
+        model = Sequential()
+        model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=X_train.shape[1]))
+        model.add(SpatialDropout1D(0.2))
+        model.add(LSTM(EMBEDDING_DIM, dropout=0.2, recurrent_dropout=0.2))
+        model.add(Dense(Y_train.shape[1], activation='softmax'))
+        model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+        model.summary()
+
+        checkpoint = ModelCheckpoint(save_file, monitor='val_loss', verbose=1,
+                                     save_best_only=True, mode='min')
+
+        history = model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size,
+                            validation_split=validation_split,callbacks=[checkpoint])
+
+        return history
+
+class ModelBiLstm():
+    @staticmethod
+    def _train(X_train,Y_train,save_file='model/biLSTM.h5',MAX_NB_WORDS = 10000,MAX_SEQUENCE_LENGTH = 250,
+               EMBEDDING_DIM = 128,epochs = 100,batch_size = 64,validation_split=0.2):
+        model = Sequential()
+        model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=X_train.shape[1]))
+        model.add(SpatialDropout1D(0.2))
+        model.add(Bidirectional(LSTM(EMBEDDING_DIM, dropout=0.2, recurrent_dropout=0.2)))
+        model.add(Dense(Y_train.shape[1], activation='softmax'))
+        model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+        model.summary()
+
+        checkpoint = ModelCheckpoint(save_file, monitor='val_loss', verbose=1,
+                                     save_best_only=True, mode='min')
+
+        history = model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size,
+                            validation_split=validation_split,callbacks=[checkpoint])
+
+        return history
+
+class ModelBert():
+    def __init__(self,in_len,out_len):
+        self.model = None
+        bert_path = "https://tfhub.dev/tensorflow/bert_en_uncased_L-12_H-768_A-12/1"
+        self.bert_module = hub.KerasLayer(bert_path,trainable=True)
+        FullTokenizer=bert.bert_tokenization.FullTokenizer
+        vocab_file = self.bert_module.resolved_object.vocab_file.asset_path.numpy()
+        do_lower_case = self.bert_module.resolved_object.do_lower_case.numpy()
+        self.tokenizer = FullTokenizer(vocab_file,do_lower_case)
+        self.out_len = out_len
+        self.in_len = in_len
+
+    def get_masks(self,tokens, max_seq_length):
+        mask_data =  [1]*len(tokens) + [0] * (max_seq_length - len(tokens))
+        return mask_data
+
+    def get_segments(self,tokens, max_seq_length):
+        '''
+        Segments: 0 for the first sequence, 
+        1 for the second
+        '''
+        segments = []
+        segment_id = 0
+        for token in tokens:
+            segments.append(segment_id)
+            if token == "[SEP]":
+                segment_id = 1
+        '''Remaining are padded with 0'''
+        remaining_segment = [0] * (max_seq_length - len(tokens))
+        segment_data = segments + remaining_segment
+        return segment_data
+    
+    def get_ids(self,tokens, tokenizer, max_seq_length):
+        token_ids = tokenizer.convert_tokens_to_ids(tokens,)
+        remaining_ids = [0] * (max_seq_length-len(token_ids))
+        input_ids = token_ids + remaining_ids
+        return input_ids
+    
+    def get_input_data(self,sentence,maxlen):
+        sent_token = self.tokenizer.tokenize(sentence)
+        sent_token = sent_token[:maxlen]
+        sent_token = ["[CLS]"] + sent_token + ["[SEP]"]
+
+        id = self.get_ids(sent_token, self.tokenizer, self.in_len )
+        mask = self.get_masks(sent_token, self.in_len )
+        segment = self.get_segments(sent_token, self.in_len )
+        input_data = [id,mask,segment]
+        return input_data
+
+    def get_input_array(self,sentences,verbose=1):
+        input_ids, input_masks, input_segments = [], [], []
+        if verbose==0:
+            sentences_ = sentences
+        else:
+            sentences_ = tqdm(sentences,position=0, leave=True)
+        for sentence in sentences_:
+            ids,masks,segments=self.get_input_data(sentence,self.in_len-2)
+
+            input_ids.append(ids)
+            input_masks.append(masks)
+            input_segments.append(segments)
+            
+        input_array = [np.asarray(input_ids, dtype=np.int32),np.asarray(input_masks, dtype=np.int32), np.asarray(input_segments, dtype=np.int32)]
+        return input_array
+
+    def bert_model(self): 
+        in_id = Input(shape=(self.in_len,), dtype=tf.int32, name="input_ids")
+        in_mask = Input(shape=(self.in_len,), dtype=tf.int32, name="input_masks")
+        in_segment = Input(shape=(self.in_len,), dtype=tf.int32, name="segment_ids")
+        
+        bert_inputs = [in_id, in_mask, in_segment]
+        bert_pooling_out, bert_sequence_out = self.bert_module(bert_inputs)
+        
+        out = GlobalAveragePooling1D()(bert_sequence_out)
+        out = Dropout(0.2)(out)
+        out = Dense(self.out_len, activation="softmax", name="dense_output")(out)
+        self.model = Model(inputs=bert_inputs, outputs=out)
+        
+        self.model.compile(optimizer=tf.keras.optimizers.Adam(1e-5),
+                           loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                           metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name="acc")])
+        
+        self.model.summary()
+
+    def model_train(self,query,category,batch_size,num_epoch):
+        train_data = self.get_input_array(query)
+        print("Fitting to model")
+        self.model.fit(train_data,category,epochs=num_epoch,batch_size=batch_size,validation_split=0.2,shuffle=True)
+        print("Model Training complete.")
+
+    def save_model(self):    
+        self.model.save("model/Bert.h5")
+        print("Model saved to model/ folder.")
+
+class DenseNeuralNet():
     """Gives the appropriate answer to a quesiton asked to app_mention in the Channel the bot is subscribed"""
     """The chatbot uses a model bag of words for the questions encoding and Keras Dense Neural Network to 
        predict the intent and answer the question"""
@@ -36,7 +269,7 @@ class DenseNeuralNet:
         
         with open(data_file+'.json') as file:
             data = json.load(file)
-            words, labels, docs_x, docs_y = [], [], [], []
+        words, labels, docs_x, docs_y = [], [], [], []
 
         for intent in data["intents"]:
             for pattern in intent["patterns"]:
@@ -73,8 +306,8 @@ class DenseNeuralNet:
             training.append(bag)
             output.append(output_row)
 
-        training = numpy.array(training)
-        output = numpy.array(output)
+        training = np.array(training)
+        output = np.array(output)
 
         with open(data_file+'.pickle', "wb") as f:
             pickle.dump((words, labels, training, output), f)
@@ -88,8 +321,7 @@ class DenseNeuralNet:
                 layers.Dense(len(output[0]), activation="softmax", name="output")
             ]) 
         model.build(input_shape=[None,len(training[0])])
-        sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True) # Stochastic Gradient Descent
-        model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+        model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
         hist = model.fit(training, output, epochs=epochs, batch_size = 5, verbose=1)
         model.save(model_file, hist)
@@ -105,7 +337,7 @@ class DenseNeuralNet:
 
     def _predict(self,inp,data,words,labels,model):
         results = model.predict([self.bag_of_words(inp, words)])
-        results_index = numpy.argmax(results)
+        results_index = np.argmax(results)
         tag = labels[results_index]
 
         for tg in data["intents"]:

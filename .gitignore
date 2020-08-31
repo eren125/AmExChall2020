@@ -5,6 +5,11 @@
 .*
 test*
 set_env_var.txt
+benchmarking_data
+Tuto*
+model/*
+Bert.h5
+summarizer.py
 
 # User-specific files
 *.rsuser
