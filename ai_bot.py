@@ -14,7 +14,7 @@ from keras.preprocessing.sequence import pad_sequences
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential, load_model
 from keras import Input,Model
-from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D, Dropout, Bidirectional, Flatten,GlobalAveragePooling1D
+from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D, Dropout, Bidirectional, Flatten,GlobalAveragePooling1D,Lambda
 from keras.callbacks import ModelCheckpoint
 
 from tqdm import tqdm
@@ -29,7 +29,7 @@ import json
 
 class LoadingData():
     """Load data into a pandas DataFrame and preprocess it"""
-    def __init__(self,MAX_NB_WORDS = 10000,MAX_SEQUENCE_LENGTH = 250,verbose=1):
+    def __init__(self,verbose=1,MAX_NB_WORDS=500,MAX_SEQUENCE_LENGTH = 250):
         filename = 'data/intents.json'
         json_file = json.load(open(filename))
         # Explode the list of questions of the dataframe
@@ -38,10 +38,8 @@ class LoadingData():
         patterns_series = self.data_frame['patterns'].apply(self._clean_text)
         self.tokenizer = Tokenizer(num_words=MAX_NB_WORDS)
         self.tokenizer.fit_on_texts(patterns_series.values)
-        word_index = self.tokenizer.word_index
-        if verbose ==1:
-            print('Found %s unique tokens.' % len(word_index))
-        self.X = self._tensorize(patterns_series,MAX_SEQUENCE_LENGTH=MAX_SEQUENCE_LENGTH,verbose=verbose)
+        self.X_ = self._tensorize(patterns_series,MAX_SEQUENCE_LENGTH=MAX_SEQUENCE_LENGTH,verbose=verbose)
+        self.X = np.array(patterns_series)
         # Tensorized label using dummy vectors (1 if is label else 0)
         self.Y = pd.get_dummies(self.data_frame['tag']).values
         if verbose==1:
@@ -64,7 +62,7 @@ class LoadingData():
         text = REPLACE_BY_SPACE_RE.sub(' ', text) # replace REPLACE_BY_SPACE_RE symbols by space in text. substitute the matched string in REPLACE_BY_SPACE_RE with space.
         text = BAD_SYMBOLS_RE.sub('', text) # remove symbols which are in BAD_SYMBOLS_RE from text. substitute the matched string in BAD_SYMBOLS_RE with nothing. 
 
-        text = ' '.join(stemmer.stem(word) for word in text.split() if word not in STOPWORDS) # remove stopwors from text
+        text = ' '.join(word for word in text.split() if word not in STOPWORDS) # remove stopwors from text
         return text
 
     def _tensorize(self,patterns_series,MAX_SEQUENCE_LENGTH = 250,verbose=1):
@@ -75,90 +73,102 @@ class LoadingData():
             print('Shape of data tensor:', X.shape)
         return X
 
-class ModelFcnn():
+class ModelRnnlm():
     """Fully connected Neural Network training methods"""
-    @staticmethod
-    def _train(X_train,Y_train,save_file='model/FCNN.h5',MAX_NB_WORDS = 10000,MAX_SEQUENCE_LENGTH = 250,
-               EMBEDDING_DIM = 128,epochs = 100,batch_size = 64,validation_split=0.2):
-        model = Sequential()
-        model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=X_train.shape[1]))
-        model.add(SpatialDropout1D(0.2))
-        model.add(Flatten())
-        model.add(Dense(64, activation = "relu"))
-        model.add(Dropout(0.5))
-        model.add(Dense(32, activation = "relu"))
-        model.add(Dropout(0.5))
-        model.add(Dense(Y_train.shape[1], activation='softmax'))
-        model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-        model.summary()
+    def __init__(self):
+        self.model = None
+        self.hub_layer = hub.KerasLayer("https://tfhub.dev/google/tf2-preview/nnlm-en-dim50-with-normalization/1", output_shape=[50],
+                           input_shape=[], dtype=tf.string,trainable=True)
+
+    def _train(self,X_train,Y_train,save_file='model/RNNLM.h5',epochs = 100,batch_size = 64,validation_split=0.2):
+        self.model = Sequential()
+        self.model.add(self.hub_layer)
+        self.model.add(Dropout(0.5))
+        self.model.add(Dense(Y_train.shape[1], activation='softmax'))
+        self.model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+        self.model.summary()
+
+        checkpoint = ModelCheckpoint(save_file, monitor='val_accuracy', verbose=1,
+                                     save_best_only=True, mode='min')
+
+        self.model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size,
+                       validation_split=validation_split,callbacks=[checkpoint])    
+
+class ModelElmo():
+    """Fully connected Neural Network training methods"""
+    def __init__(self):
+        self.model = None
+
+    def ELMoEmbedding(self,x):
+        elmo = hub.Module("https://tfhub.dev/google/elmo/2",trainable=True)
+        return elmo(tf.squeeze(tf.cast(x,tf.string)),signature='default',as_dict=True)["default"]
+
+    def _train(self,X_train,Y_train,save_file='model/ELMo.h5',epochs = 100,batch_size = 64,validation_split=0.2):
+        self.model = Sequential()
+        self.model.add(Lambda(self.ELMoEmbedding,input_shape=[], dtype=tf.string,output_shape=(1024,)))
+        self.model.add(Dense(128, activation='relu'))
+        self.model.add(Dense(Y_train.shape[1], activation='softmax'))
+        self.model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+        self.model.summary()
 
         checkpoint = ModelCheckpoint(save_file, monitor='val_loss', verbose=1,
                                      save_best_only=True, mode='min')
 
-        history = model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size,
-                            validation_split=validation_split,callbacks=[checkpoint])
-
-        return history
-    
-    def to_bag(self,X,MAX_NB_WORDS):
-        L=[]
-        for i in range(X.shape[0]):
-            a = np.bincount(X[i,:])[1:]
-            L.append(list(a) + [0 for i in range(MAX_NB_WORDS-len(a))])
-        return np.array(L)
-        
+        self.model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size,
+                       validation_split=validation_split,callbacks=[checkpoint])    
 
 class ModelLstm():
-    @staticmethod
-    def _train(X_train,Y_train,save_file='model/LSTM.h5',MAX_NB_WORDS = 10000,MAX_SEQUENCE_LENGTH = 250,
-               EMBEDDING_DIM = 128,epochs = 100,batch_size = 64,validation_split=0.2):
-        model = Sequential()
-        model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=X_train.shape[1]))
-        model.add(SpatialDropout1D(0.2))
-        model.add(LSTM(EMBEDDING_DIM, dropout=0.2, recurrent_dropout=0.2))
-        model.add(Dense(Y_train.shape[1], activation='softmax'))
-        model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-        model.summary()
+    def __init__(self):
+        self.model = None
 
-        checkpoint = ModelCheckpoint(save_file, monitor='val_loss', verbose=1,
+    def _train(self,X_train,Y_train,save_file='model/LSTM.h5',MAX_NB_WORDS = 500,MAX_SEQUENCE_LENGTH = 250,
+               EMBEDDING_DIM = 128,epochs = 100,batch_size = 64,validation_split=0.2):
+        self.model = Sequential()
+        self.model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=X_train.shape[1]))
+        self.model.add(SpatialDropout1D(0.2))
+        self.model.add(LSTM(EMBEDDING_DIM, dropout=0.2, recurrent_dropout=0.2))
+        self.model.add(Dense(Y_train.shape[1], activation='softmax'))
+        self.model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+        self.model.summary()
+
+        checkpoint = ModelCheckpoint(save_file, monitor='val_accuracy', verbose=1,
                                      save_best_only=True, mode='min')
 
-        history = model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size,
+        self.model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size,
                             validation_split=validation_split,callbacks=[checkpoint])
-
-        return history
 
 class ModelBiLstm():
-    @staticmethod
-    def _train(X_train,Y_train,save_file='model/biLSTM.h5',MAX_NB_WORDS = 10000,MAX_SEQUENCE_LENGTH = 250,
+    def __init__(self):
+        self.model = None
+    def _train(self,X_train,Y_train,save_file='model/BiLSTM.h5',MAX_NB_WORDS = 500,MAX_SEQUENCE_LENGTH = 250,
                EMBEDDING_DIM = 128,epochs = 100,batch_size = 64,validation_split=0.2):
-        model = Sequential()
-        model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=X_train.shape[1]))
-        model.add(SpatialDropout1D(0.2))
-        model.add(Bidirectional(LSTM(EMBEDDING_DIM, dropout=0.2, recurrent_dropout=0.2)))
-        model.add(Dense(Y_train.shape[1], activation='softmax'))
-        model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-        model.summary()
+        self.model = Sequential()
+        self.model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=X_train.shape[1]))
+        self.model.add(SpatialDropout1D(0.2))
+        self.model.add(Bidirectional(LSTM(EMBEDDING_DIM, dropout=0.2, recurrent_dropout=0.2)))
+        self.model.add(Dense(Y_train.shape[1], activation='softmax'))
+        self.model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+        self.model.summary()
 
         checkpoint = ModelCheckpoint(save_file, monitor='val_loss', verbose=1,
                                      save_best_only=True, mode='min')
 
-        history = model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size,
+        self.model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size,
                             validation_split=validation_split,callbacks=[checkpoint])
 
-        return history
 
 class ModelBert():
-    def __init__(self,in_len,out_len):
+    def __init__(self,in_len,out_len,save_file="model/Bert.h5",trainable=False):
         self.model = None
-        bert_path = "https://tfhub.dev/tensorflow/bert_en_uncased_L-12_H-768_A-12/1"
-        self.bert_module = hub.KerasLayer(bert_path,trainable=True)
+        bert_path = "https://tfhub.dev/tensorflow/bert_en_uncased_L-12_H-768_A-12/2"
+        self.bert_module = hub.KerasLayer(bert_path,trainable=trainable)
         FullTokenizer=bert.bert_tokenization.FullTokenizer
         vocab_file = self.bert_module.resolved_object.vocab_file.asset_path.numpy()
         do_lower_case = self.bert_module.resolved_object.do_lower_case.numpy()
         self.tokenizer = FullTokenizer(vocab_file,do_lower_case)
         self.out_len = out_len
         self.in_len = in_len
+        self.save_file = save_file
 
     def get_masks(self,tokens, max_seq_length):
         mask_data =  [1]*len(tokens) + [0] * (max_seq_length - len(tokens))
@@ -223,6 +233,8 @@ class ModelBert():
         
         out = GlobalAveragePooling1D()(bert_sequence_out)
         out = Dropout(0.2)(out)
+        out = Dense(64, activation="relu", name="hidden")(out)
+        out = Dropout(0.2)(out)
         out = Dense(self.out_len, activation="softmax", name="dense_output")(out)
         self.model = Model(inputs=bert_inputs, outputs=out)
         
@@ -232,14 +244,17 @@ class ModelBert():
         
         self.model.summary()
 
-    def model_train(self,query,category,batch_size,num_epoch):
+    def _train(self,query,category,batch_size,epochs):
         train_data = self.get_input_array(query)
         print("Fitting to model")
-        self.model.fit(train_data,category,epochs=num_epoch,batch_size=batch_size,validation_split=0.2,shuffle=True)
+        checkpoint = ModelCheckpoint(self.save_file, monitor='val_loss', verbose=1,
+                                     save_best_only=True, mode='min')
+        self.model.fit(train_data,category,epochs=epochs,batch_size=batch_size,
+                       validation_split=0.2,shuffle=True,callbacks=[checkpoint])
         print("Model Training complete.")
 
-    def save_model(self):    
-        self.model.save("model/Bert.h5")
+    def _save(self):    
+        self.model.save(self.save_file)
         print("Model saved to model/ folder.")
 
 class DenseNeuralNet():

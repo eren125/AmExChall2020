@@ -1,44 +1,30 @@
 # %%
 import ai_bot
-import matplotlib.pyplot as plt
-MAX_NB_WORDS=128
-data = ai_bot.LoadingData(verbose=1,MAX_NB_WORDS=MAX_NB_WORDS)
-
-model_obj = ai_bot.ModelBert(MAX_NB_WORDS,len(data.cat_to_tag))
-
-model_obj.bert_model()
-
-model_obj.model_train(data.data_frame['patterns'],data.data_frame['tag'].apply(lambda x: data.tag_to_cat[x]),batch_size=5,num_epoch=200)
-
-model_obj.model.save('model/Bert.h5')
-
+data = ai_bot.LoadingData()
+Model = ai_bot.ModelRnnlm()
+Model._train(data.X,data.Y,epochs = 10,batch_size = 32)
+Model.model.save_weights("model/RNNLM.h5")
+# Model.model.load_weights("model/RNNLM.h5")
 # %%
-data = ai_bot.LoadingData(verbose=1,MAX_NB_WORDS=MAX_NB_WORDS)
-
-history = ai_bot.ModelBiLstm()._train(data.X_train,data.Y_train,batch_size=5,epochs=200,MAX_NB_WORDS=MAX_NB_WORDS)
-
+import ai_bot
+data = ai_bot.LoadingData()
+Model = ai_bot.ModelLstm()
+Model._train(data.X_,data.Y,epochs = 10,batch_size = 32)
+Model.model.save_weights("model/LSTM.h5")
+# Model.model.load_weights("model/LSTM.h5")
 # %%
-plt.title('Loss')
-plt.plot(history.history['loss'], label='train')
-plt.plot(history.history['val_loss'], label='validation')
-plt.legend()
-plt.show()
-
+import ai_bot
+data = ai_bot.LoadingData()
+Model = ai_bot.ModelBiLstm()
+Model._train(data.X_,data.Y,epochs = 10,batch_size = 32)
+Model.model.save_weights("model/BiLSTM.h5")
+# Model.model.load_weights("model/BiLSTM.h5")
 # %%
-try:
-    plt.title('Accuracy')
-    plt.plot(history.history['acc'], label='train')
-    plt.plot(history.history['val_acc'], label='validation')
-    plt.legend()
-    plt.show()
-except:
-    plt.title('Accuracy')
-    plt.plot(history.history['accuracy'], label='train')
-    plt.plot(history.history['val_accuracy'], label='validation')
-    plt.legend()
-    plt.show()
-
+# BERT training session
+import ai_bot
+data = ai_bot.LoadingData()
+Model = ai_bot.ModelBert(len(data.X),len(data.Y))
+Model.bert_model()
+Model._train(data.X,data.data_frame['tag'].apply(lambda x: data.tag_to_cat[x]),epochs = 10,batch_size = 32)
+# Model.model.load_weights("model/Bert.h5")
 # %%
-model = ai_bot.load_model('model/biLSTM.h5')
-accr = model.evaluate(data.X_test,data.Y_test)
-print('Test set\n  Loss: {:0.3f}\n  Accuracy: {:0.3f}'.format(accr[0],accr[1]))
