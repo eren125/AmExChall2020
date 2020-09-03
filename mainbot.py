@@ -1,12 +1,15 @@
 import os
 import logging
-from flask import Flask
+from flask import Flask, request
 from slack import WebClient
+from slack.errors import SlackApiError
 from slackeventsapi import SlackEventAdapter
 from onboarding_tutorial import OnboardingTutorial
-from ai_bot import DenseNeuralNet
+import ai_bot
 import ssl as ssl_lib
 import certifi
+import threading
+import requests
 
 ssl_context = ssl_lib.create_default_context(cafile=certifi.where())
 
@@ -22,13 +25,36 @@ slack_web_client = WebClient(token=os.environ['SLACK_BOT_TOKEN'])
 onboarding_tutorials_sent = {}
 
 # Load model once and for all (using load data function)
-data_file="data/new"
-model_file='model/model3.keras'
-try:
-    data,words,labels,model = DenseNeuralNet(None,None)._load_data(data_file=data_file,model_file=model_file)
-except:
-    DenseNeuralNet(None,None)._train(data_file=data_file,model_file=model_file)
-    data,words,labels,model = DenseNeuralNet(None,None)._load_data(data_file=data_file,model_file=model_file)
+data = ai_bot.LoadingData()
+cat_to_tag = data.cat_to_tag
+tag_to_response = data.tag_to_response
+
+model_obj_1 = ai_bot.ModelFcnn()
+model_obj_1._build(data.X_,data.Y)
+model_obj_1.model.load_weights("model/FCNN.h5")
+
+model_obj_2 = ai_bot.ModelRnnlm()
+model_obj_2._build(data.X_,data.Y)
+model_obj_2.model.load_weights("model/RNNLM.h5")
+
+model_obj_3 = ai_bot.ModelLstm()
+model_obj_3._build(data.X_,data.Y,EMBEDDING_DIM = 128)
+model_obj_3.model.load_weights("model/LSTM.h5")
+
+model_obj_4 = ai_bot.ModelBiLstm()
+model_obj_4._build(data.X_,data.Y,EMBEDDING_DIM = 128)
+model_obj_4.model.load_weights("model/BiLSTM.h5")
+
+model_obj_5 = ai_bot.ModelBiLstm2()
+model_obj_5._build(data.X_,data.Y,EMBEDDING_DIM = 100)
+model_obj_5.model.load_weights("model/BiLSTM2.h5")
+
+model_obj_6 = ai_bot.ModelBert(len(data.X),data.Y.shape[1])
+model_obj_6.bert_model()
+model_obj_6.model.load_weights("model/Bert.h5")
+
+model_objects = [model_obj_2,model_obj_3,model_obj_4,model_obj_5,model_obj_6]
+
 
 def start_onboarding(user_id: str, channel: str):
     # Create a new onboarding tutorial.
@@ -157,35 +183,39 @@ def message(payload):
 # When a user sends a message with mention "@amexbot", the event type will be 'app_mention'.
 # Here we'll link the message callback to the 'app_mention' event.
 @slack_events_adapter.on("app_mention")
-def ai_bot(payload):
+def slash_response(payload):                
+    """endpoint for receiving all slash command requests from Slack"""
+
+    # get the full request from Slack
+    slack_request = request.form
+    print(slack_request)
+    # starting a new thread for doing the actual processing    
+    x = threading.Thread(
+            target=ai_message,
+            args=(slack_request,payload,)
+        )
+    x.start()
+
+    ## respond to Slack with quick message
+    # and end the main thread for this request
+    return "Let me think.... Please wait :robot_face:"
+def ai_message(slack_request,payload):
     """Respond using the ML model when the bot is mentioned with "@amexbot"
     using the text
     """
     event = payload.get("event", {})
 
     channel_id = event.get("channel")
-    user_id = event.get("user")
     text = event.get("text")
 
-    # Create a new onboarding tutorial.
-    onboarding_tutorial = DenseNeuralNet(channel_id, text)
+    # Create a message structure with an intent prediction.
+    ai_chatbot = ai_bot.SlackMessage(channel_id, text)
 
-    # Get the onboarding message payload
-    message = onboarding_tutorial.get_message_payload(data,words,labels,model)
-
-    # Post the onboarding message in Slack
+    # Get the response predicted
+    message = ai_chatbot.get_message_payload(model_objects,cat_to_tag,tag_to_response)
+    
+    # Post the AI message in Slack
     response = slack_web_client.chat_postMessage(**message)
-
-    # Capture the timestamp of the message we've just posted so
-    # we can use it to update the message after a user
-    # has completed an onboarding task.
-    onboarding_tutorial.timestamp = response["ts"]
-
-    # Store the message sent in onboarding_tutorials_sent
-    if channel_id not in onboarding_tutorials_sent:
-        onboarding_tutorials_sent[channel_id] = {}
-    onboarding_tutorials_sent[channel_id][user_id] = onboarding_tutorial
-
 
 if __name__ == "__main__":
     logger = logging.getLogger()

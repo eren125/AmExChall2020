@@ -3,38 +3,55 @@
         {
             "tag": "greeting",
             "patterns": [
-                "Hi","Good Morning","Good Afternoon","Good Evening",
-                "Hello", "Bonjour", "Hola", "Salaam", "Guten tag",
-                "How do you do?","Nice to meet you", "Pleased to meet you",
-                "Hey","What's up?","What's new?","What's going on?","Yo!","Howdy!",
-                "Hiya","D'day mate!","I'm glad to see you","I'm happy to see you","I'm pleased to see you"
+                "Hi",
+                "Good Morning",
+                "Good Afternoon",
+                "Good Evening",
+                "Hello",
+                "Bonjour",
+                "Hola",
+                "Salaam",
+                "Guten tag",
+                "How do you do?",
+                "Nice to meet you",
+                "Pleased to meet you",
+                "Hey",
+                "What's up?",
+                "What's new?",
+                "What's going on?",
+                "Yo!",
+                "Howdy!",
+                "Hiya",
+                "D'day mate!",
+                "I'm glad to see you",
+                "I'm happy to see you",
+                "I'm pleased to see you",
+                "Who are you?",
+                "What are you doing?",
+                "Can you assist me to find a good travel deal",
+                "what is your name?",
+                "I want to find a good travel deal",
+                "Help me!",
+                "Assist me!",
+                "Give me advice on my next travel",
+                "what is your job?",
+                "How can you help?",
+                "Your name?",
+                "What travel plan do you recommend?",
+                "Recommendation please",
+                "Thank you for your help",
+                "Thank you for your assistance",
+                "Goodbye",
+                "Very nice talk",
+                "Very informative",
+                "Nice infos",
+                "Thank you",
+                "This was helpful"
             ],
             "responses": [
-                "Hello, thanks for visiting. May I help you?"
+                "Hello, my name is AmExBot :robot_face:, and I am here to help you with your travel plans :grinning:"
             ],
             "context_set": ""
-        },
-        {
-            "tag": "identity",
-            "patterns": [
-                "Who are you?","What are you doing?","Can you assist me to find a good travel deal",
-                "what is your name?","I want to find a good travel deal","Help me!","Assist me!","Give me advice on my next travel",
-                "what is your job?","How can you help?","Your name?","What travel plan do you recommend?","Recommendation please"
-            ],
-            "responses": [
-                "My name is AmExBot :robot_face:, and I am here to help you with your travel plans :grinning:"
-            ]
-        },
-        {
-            "tag": "goodbye",
-            "patterns": [
-                "Bye","Thank you","This was helpful","Nice recommendations",
-                "See you later","Have a nice day","Thank you for your help","Thank you for your assistance",
-                "Goodbye","Very nice talk","Very informative","Nice infos","These travel deals are nice!"
-            ],
-            "responses": [
-                "See you later, thanks for visiting"
-            ]
         },
         {
             "tag": "historical",
