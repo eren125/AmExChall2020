@@ -10,6 +10,8 @@ Tuto*
 model/*
 Bert.h5
 summarizer.py
+onboarding_tutorial_.py
+data/tutorial.json 
 
 # User-specific files
 *.rsuser

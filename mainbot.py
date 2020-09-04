@@ -2,9 +2,8 @@ import os
 import logging
 from flask import Flask, request
 from slack import WebClient
-from slack.errors import SlackApiError
 from slackeventsapi import SlackEventAdapter
-from onboarding_tutorial import OnboardingTutorial
+from ai_bot import OnboardingMessage
 import ai_bot
 import ssl as ssl_lib
 import certifi
@@ -21,44 +20,40 @@ slack_events_adapter = SlackEventAdapter(os.environ["SLACK_SIGNING_SECRET"], "/s
 slack_web_client = WebClient(token=os.environ['SLACK_BOT_TOKEN'])
 
 # For simplicity we'll store our app data in-memory with the following data structure.
-# onboarding_tutorials_sent = {"channel": {"user_id": OnboardingTutorial}}
+# onboarding_tutorials_sent = {"channel": {"user_id": OnboardingMessage}}
 onboarding_tutorials_sent = {}
 
 # Load model once and for all (using load data function)
 data = ai_bot.LoadingData()
-cat_to_tag = data.cat_to_tag
-tag_to_response = data.tag_to_response
+cat_to_tag,tag_to_response = data.cat_to_tag,data.tag_to_response
+_clean_text,_tensorize = data._clean_text,data._tensorize
+
+X_shape,Y_shape = data.X,data.Y # Need data for the shaped to be used
 
 model_obj_1 = ai_bot.ModelFcnn()
-model_obj_1._build(data.X_,data.Y)
+X,Y = model_obj_1.get_input_array(X_shape,_clean_text,_tensorize),Y_shape
+model_obj_1._build(X,Y)
 model_obj_1.model.load_weights("model/FCNN.h5")
 
-model_obj_2 = ai_bot.ModelRnnlm()
-model_obj_2._build(data.X_,data.Y)
-model_obj_2.model.load_weights("model/RNNLM.h5")
+model_obj_2 = ai_bot.ModelLstm()
+X,Y = model_obj_2.get_input_array(X_shape,_clean_text,_tensorize),Y_shape
+model_obj_2._build(X,Y,EMBEDDING_DIM = 128)
+model_obj_2.model.load_weights("model/LSTM.h5")
 
-model_obj_3 = ai_bot.ModelLstm()
-model_obj_3._build(data.X_,data.Y,EMBEDDING_DIM = 128)
-model_obj_3.model.load_weights("model/LSTM.h5")
+model_obj_3 = ai_bot.ModelRnnlm()
+X,Y = model_obj_3.get_input_array(X_shape,_clean_text,_tensorize),Y_shape
+model_obj_3._build(X,Y)
+model_obj_3.model.load_weights("model/RNNLM.h5")
 
-model_obj_4 = ai_bot.ModelBiLstm()
-model_obj_4._build(data.X_,data.Y,EMBEDDING_DIM = 128)
-model_obj_4.model.load_weights("model/BiLSTM.h5")
+model_obj_4 = ai_bot.ModelBert(512,Y_shape.shape[1])
+model_obj_4.bert_model()
+model_obj_4.model.load_weights("model/Bert.h5")
 
-model_obj_5 = ai_bot.ModelBiLstm2()
-model_obj_5._build(data.X_,data.Y,EMBEDDING_DIM = 100)
-model_obj_5.model.load_weights("model/BiLSTM2.h5")
-
-model_obj_6 = ai_bot.ModelBert(len(data.X),data.Y.shape[1])
-model_obj_6.bert_model()
-model_obj_6.model.load_weights("model/Bert.h5")
-
-model_objects = [model_obj_2,model_obj_3,model_obj_4,model_obj_5,model_obj_6]
-
+model_objects = [model_obj_1,model_obj_2,model_obj_3,model_obj_4]
 
 def start_onboarding(user_id: str, channel: str):
     # Create a new onboarding tutorial.
-    onboarding_tutorial = OnboardingTutorial(channel)
+    onboarding_tutorial = OnboardingMessage(channel)
 
     # Get the onboarding message payload
     message = onboarding_tutorial.get_message_payload()
@@ -212,7 +207,7 @@ def ai_message(slack_request,payload):
     ai_chatbot = ai_bot.SlackMessage(channel_id, text)
 
     # Get the response predicted
-    message = ai_chatbot.get_message_payload(model_objects,cat_to_tag,tag_to_response)
+    message = ai_chatbot.get_message_payload(model_objects,_clean_text,_tensorize,cat_to_tag,tag_to_response)
     
     # Post the AI message in Slack
     response = slack_web_client.chat_postMessage(**message)
