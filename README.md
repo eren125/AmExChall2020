@@ -56,7 +56,7 @@ The model only handles questions concerning one country <b>Beijing</b>
 
 ### To do implementation on a website :bookmark_tabs:
 
-## The code behind -- Further development
+## :checkered_flag: The code behind -- Further development
 
 Please look at the code in <i>ai_bot.py</i> to understand the preprocessing of the data and the construction of the architectures of the models used. Some models haven't been presented in the frontend of the software for clarity purposes. 
 
@@ -64,7 +64,7 @@ Further developments can be done concerning the implementation of country detect
 
 Certain limitations could also be adressed. We used a pretty big hand-typed dataset, but it is not big enough to avoid biases, since we come from a certain background, our way of speaking and the questions we think about are limited compared to what people from all over the world would think of and type to the chatbot. This curse of dimensionality can be tackled using state-of-the-art models like Bert but also by diverfying the way the sentences are written. We can imagine to retrieve chat content from the chatbot interface (Slack or website) and process it into a labelisation software to <b>amplify the diversity</b> in our dataset. Moreover, a <b>data augmentation</b> script could be useful to add more noise in the dataset and create more robust models.
 
-## Contributing
+## :information_desk_person: Contributing
  
 1. Fork it!
 2. Create your feature branch: `git checkout -b my-new-feature`
