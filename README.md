@@ -62,7 +62,7 @@ Please look at the code in <i>ai_bot.py</i> to understand the preprocessing of t
 
 Further developments can be done concerning the implementation of country detection coupled with intent detection in order to give more precise information and tackle a broader public. More features could be studied: the country, the price, the preference... A clearer mapping between theses features and travel deals would be key for the success of such a Chatbot.
 
-Certain limitations could also be adressed. We used a pretty big hand-typed dataset, but it is not big enough to avoid biases, since we come from a certain background, our way of speaking and the questions we think about are limited compared to what people from all over the world would think of and type to the chatbot. This curse of dimensionality can be tackled using state-of-the-art models like Bert but also by diverfying the way the sentences are written.
+Certain limitations could also be adressed. We used a pretty big hand-typed dataset, but it is not big enough to avoid biases, since we come from a certain background, our way of speaking and the questions we think about are limited compared to what people from all over the world would think of and type to the chatbot. This curse of dimensionality can be tackled using state-of-the-art models like Bert but also by diverfying the way the sentences are written. We can imagine to retrieve chat content from the chatbot interface (Slack or website) and process it into a labelisation software to <b>amplify the diversity</b> in our dataset. Moreover, a <b>data augmentation</b> script could be useful to add more noise in the dataset and create more robust models.
 
 ## Contributing
  
