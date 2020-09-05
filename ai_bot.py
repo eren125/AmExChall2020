@@ -93,7 +93,7 @@ class ModelFcnn():
            
     def get_input_array(self,s,_clean_text,_tensorize):
         sentences = np.array([_clean_text(sentence) for sentence in s])
-        inp = _tensorize(pd.Series(sentences))
+        inp = _tensorize(pd.Series(sentences),verbose=0)
         return self._bagging(inp)
 
     def _build(self,X,Y):
@@ -150,7 +150,7 @@ class ModelLstm():
     
     def get_input_array(self,s,_clean_text,_tensorize):
         sentences = np.array([_clean_text(sentence) for sentence in s])
-        inp = _tensorize(pd.Series(sentences))
+        inp = _tensorize(pd.Series(sentences),verbose=0)
         return inp
         
     def _build(self,X_train,Y_train,EMBEDDING_DIM = 128):
@@ -176,7 +176,7 @@ class ModelBiLstm():
 
     def get_input_array(self,s,_clean_text,_tensorize):
         sentences = np.array([_clean_text(sentence) for sentence in s])
-        inp = _tensorize(pd.Series(sentences))
+        inp = _tensorize(pd.Series(sentences),verbose=0)
         return inp
 
     def _build(self,X_train,Y_train,EMBEDDING_DIM = 128):
@@ -202,7 +202,7 @@ class ModelBiLstm2():
 
     def get_input_array(self,s,_clean_text,_tensorize):
         sentences = np.array([_clean_text(sentence) for sentence in s])
-        inp = _tensorize(pd.Series(sentences))
+        inp = _tensorize(pd.Series(sentences),verbose=0)
         return inp
 
     def _build(self,X_train,Y_train,EMBEDDING_DIM = 100):
@@ -273,7 +273,7 @@ class ModelBert():
         input_data = [id,mask,segment]
         return input_data
 
-    def get_input_array(self,sentences,_clean_text,_tensorize,verbose=1):
+    def get_input_array(self,sentences,_clean_text,_tensorize,verbose=0):
         input_ids, input_masks, input_segments = [], [], []
         if verbose==0:
             sentences_ = [_clean_text(w) for w in sentences]
@@ -330,13 +330,14 @@ class SlackMessage():
         self.inp = inp
 
     def get_message_payload(self,model_objects,_clean_text,_tensorize,cat_to_tag,tag_to_response):
+        text, information = self._predict(self.inp,model_objects,_clean_text,_tensorize,cat_to_tag,tag_to_response)
         return {
             "ts": self.timestamp,
             "channel": self.channel,
             "username": self.username,
             "icon_emoji": self.icon_emoji,
             "blocks": [
-                *self._predict(self.inp,model_objects,_clean_text,_tensorize,cat_to_tag,tag_to_response)
+                *self._get_task_block(text,information)
             ],
         }
 
@@ -365,7 +366,7 @@ class SlackMessage():
             pred = cat_to_tag[results_index]
             information += "%s: %s (%.2f%%)\n"%(model_objects[i]._type,pred,pourcentage)
         
-        return self._get_task_block(response,information)
+        return (response,information)
 
     @staticmethod
     def _get_task_block(text,information):
