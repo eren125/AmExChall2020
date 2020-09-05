@@ -23,7 +23,7 @@ model_obj_3._build(X,Y)
 model_obj_3.model.load_weights("model/RNNLM.h5")
 
 model_obj_4 = ai_bot.ModelBert(512,Y_shape.shape[1])
-model_obj_4.bert_model()
+model_obj_4._build()
 model_obj_4.model.load_weights("model/Bert.h5")
 
 model_objects = [model_obj_1,model_obj_2,model_obj_3,model_obj_4]

@@ -289,7 +289,7 @@ class ModelBert():
         input_array = [np.asarray(input_ids, dtype=np.int32),np.asarray(input_masks, dtype=np.int32), np.asarray(input_segments, dtype=np.int32)]
         return input_array
 
-    def bert_model(self): 
+    def _build(self): 
         in_id = Input(shape=(self.in_len,), dtype=tf.int32, name="input_ids")
         in_mask = Input(shape=(self.in_len,), dtype=tf.int32, name="input_masks")
         in_segment = Input(shape=(self.in_len,), dtype=tf.int32, name="segment_ids")

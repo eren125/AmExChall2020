@@ -85,7 +85,7 @@ print("Test accuracy: %s"%accuracy)
 Model = ai_bot.ModelBert(512,Y_train.shape[1])
 # Preprocess data into sequences
 X_train_,Y_train_ = Model.get_input_array(X_train,_clean_text,_tensorize),Y_train # Preprocess data so that it corresponds to the model
-Model.bert_model()
+Model._build()
 Model._train(X_train_,Y_train_,epochs = 7,batch_size = 8,validation_split=0.15)
 # %%
 history = Model.model.history.history

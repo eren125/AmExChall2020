@@ -78,8 +78,8 @@ Version 0.1 (2020-09-05) - adding Devise and core Rails functionality
  
 ## Credits
  
-Lead Developer - Emmanuel Ren (@eren125)
-Main contributor - Dabeen Oh (@dabeenoh)
+Lead Developer - Emmanuel Ren (@eren125)<br>
+Main contributor - Dabeen Oh (@dabeenoh)<br>
 Main contributor - Soyeong Bak (@111570)
 
 ## License
