@@ -7,7 +7,7 @@ X_train, Y_train = data.X_train,data.Y_train # text data (train)
 X_test, Y_test = data.X_test,data.Y_test # text data (test)
 _clean_text,_tensorize = data._clean_text,data._tensorize
 print("Training set's size: %s \nTest set's size: %s"%(len(X_train),len(X_test)))
-print(data.cat_to_tag,data.tag_to_response)
+print(data.cat_to_tag)
 # %%
 # Full bag-of-words / FCNN does not work (accuracy low even with a high dimensionality 430k params)
 Model = ai_bot.ModelFcnn()
