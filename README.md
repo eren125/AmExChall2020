@@ -1,5 +1,14 @@
 # American Express Challenge 2020
 
+## Presentation Slides Final Draft and Final Product
+
+Please look at:<br>
+<ul>
+<li><i>Training_notebook.html</i> for details on the development of the models and the Chatbot</li>
+<li><i>Presentation/Presentation.pdf</i> for the final presentation's slides</li>
+<li><i><a href="https://join.slack.com/t/dorebeen/shared_invite/zt-gne8osn9-5YUofOA9m7fZwy1roaePAA">Slack</a></i> to interact with us and our chatbot @amexbot</li>
+</ul>
+
 ## Artificially intelligent ChatBot for travel recommendation (Software)
 
 ### :wrench: Installation of packages via python3 in Terminal prompt
