@@ -21,7 +21,7 @@ I do recommend to use Visual Studio Code and its "Python Interactive" shell to r
 
 You can also use the notebook and <b>jupyter notebook</b> to run the trainings.
 
-If you don't have the patience to wait for an eight-hour long training, simply download the <a href="">models' weights</a> and copy-paste them into the <i>model/</i> folder.
+If you don't have the patience to wait for an eight-hour long training, simply download the <a href="https://1drv.ms/u/s!AhUpstqoint1kVeDj6onggHoCq6v?e=FU0FW3">models' weights</a> and copy-paste them into the <i>model/</i> folder.
 
 ### :robot: Interact with the DL models via a ChatBot
 
