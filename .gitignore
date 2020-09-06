@@ -8,6 +8,7 @@ set_env_var.txt
 benchmarking_data
 Tuto*
 model/*
+!model/.gitkeep
 Bert.h5
 summarizer.py
 onboarding_tutorial_.py
