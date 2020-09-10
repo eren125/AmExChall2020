@@ -17,7 +17,7 @@ for i in range(len(data["intents"][1:])):
     data['intents'][i+1]['patterns'] = L
 
 # Save the dictionnary into a json file
-with open('data/intents.json', "w") as f:
+with open('data/intents_out.json', "w") as f:
     json.dump(data, f, indent=4)
 
 # %%

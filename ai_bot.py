@@ -342,30 +342,40 @@ class SlackMessage():
         }
 
     def _predict(self,s,model_objects,_clean_text,_tensorize,cat_to_tag,tag_to_response):
-        model_obj = model_objects[-1]
-        input_array = model_obj.get_input_array([s],_clean_text,_tensorize)
-        results = model_obj.model.predict(input_array)
-
-        results_index = np.argmax(results)
-
-        if results[0][results_index]>self.THRESHOLD:
-            tag = cat_to_tag[results_index]
-            responses = tag_to_response[tag]
-            if tag in ['greeting']:
-                response=responses[0]
-            else:
-                response = ("I understand that you like %s. These are my recommandations: \n"%tag + "\n".join(responses))
-        else: 
-            response='Sorry, I didn\'t understand. Can you reformulate?'
+        N = len(model_objects)
         information = ""
-        for i in range(len(model_objects)):
+        for i in range(N):
             input_array = model_objects[i].get_input_array([s],_clean_text,_tensorize)
-            results = model_objects[i].model.predict(input_array)
-            results_index = np.argmax(results[0])
-            pourcentage = results[0][results_index]*100
-            pred = cat_to_tag[results_index]
-            information += "%s: %s (%.2f%%)\n"%(model_objects[i]._type,pred,pourcentage)
-        
+            results_1 = model_objects[i].model.predict(input_array)
+
+            results_index_1 = np.argmax(results_1[0])
+            percentage_1 = results_1[0][results_index_1]*100
+
+            results_2 = [x if x*100<percentage_1 else 0 for x in results_1[0]]
+            results_2[3] = 0 #greeting set to zero > tag_to_cat['greeting']
+            results_index_2 = np.argmax(results_2)
+            percentage_2 = results_2[results_index_2]*100
+
+            pred_1 = cat_to_tag[results_index_1]
+            pred_2 = cat_to_tag[results_index_2]
+
+            information += "%s: %s(%.2f%%), %s(%.2f%%)\n"%(model_objects[i]._type,pred_1,percentage_1,pred_2,percentage_2)
+            if i==N-1:
+                if percentage_1>75: # in %
+                    responses = tag_to_response[pred_1]
+                    if pred_1 in ['greeting']:
+                        response=responses[0]
+                    else:
+                        response = ("I understand that you like %s. These are my recommandations: \n"%pred_1 + "\n".join(responses))
+                
+                elif percentage_1>30: # in %
+                    responses = tag_to_response[pred_1]
+                    responses_2 = tag_to_response[pred_2]
+                    response = ("I understand that you like %s and %s. These are my recommandations: \n"%(pred_1,pred_2) + "\n".join(responses+responses_2))
+                
+                else: 
+                    response='Sorry, I didn\'t understand. Can you reformulate?'
+
         return (response,information)
 
     @staticmethod

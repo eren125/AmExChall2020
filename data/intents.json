@@ -54,7 +54,7 @@
             "context_set": ""
         },
         {
-            "tag": "historical",
+            "tag": "landmarks/monuments",
             "patterns": [
                 "I have always been interested in chinese history.",
                 "I would like to visit all the historical places of Beijing.",
@@ -190,7 +190,7 @@
             ]
         },
         {
-            "tag": "food ",
+            "tag": "food tourism",
             "patterns": [
                 "I'm a foodie, recommend me food tours. ",
                 "I want to taste delicious chinese food.",
@@ -324,7 +324,7 @@
             ]
         },
         {
-            "tag": "animals",
+            "tag": "animal parks",
             "patterns": [
                 "I love pandas.",
                 "I want to see pandas.",
@@ -451,7 +451,7 @@
             ]
         },
         {
-            "tag": "show_concerts",
+            "tag": "shows/concerts",
             "patterns": [
                 "I want to see concerts.",
                 "I wanna see chinese acrobatics.",
@@ -577,12 +577,11 @@
             "responses": [
                 "https://www.lonelyplanet.com/china/beijing/activities/chaoyang-theatre-acrobatic-show-ticket/a/pa-act/v-6139P13/355905 ",
                 "https://www.lonelyplanet.com/china/beijing/activities/shaolin-kung-fu-show-in-beijing-red-theater/a/pa-act/v-6139P20/355905 ",
-                "https://www.lonelyplanet.com/china/beijing/activities/beijing-chaoyang-theater-acrobatic-show-with-private-transfer/a/pa-act/v-26448P18/355905 ",
-                "https://www.lonelyplanet.com/china/beijing/activities/beijing-small-group-tai-chi-or-kung-fu-class-plus-calligraphy/a/pa-act/v-10745P4/355905"
+                "https://www.lonelyplanet.com/china/beijing/activities/beijing-chaoyang-theater-acrobatic-show-with-private-transfer/a/pa-act/v-26448P18/355905 "
             ]
         },
         {
-            "tag": "relaxation",
+            "tag": "relaxation activities",
             "patterns": [
                 "Robot, recommend me the best massage places in Beijing",
                 "Show me good-quality massage parlors.",
@@ -713,7 +712,7 @@
             ]
         },
         {
-            "tag": "night tour",
+            "tag": "night tours",
             "patterns": [
                 "What are the best locations in Beijing for night photos?",
                 "I am looking for the best places to take pictures in Beijing at night.",
@@ -847,7 +846,7 @@
             ]
         },
         {
-            "tag": "cruise",
+            "tag": "cruise tourism",
             "patterns": [
                 "What are the top Beijing boat cruises?",
                 "I want to go on a water tour.",
