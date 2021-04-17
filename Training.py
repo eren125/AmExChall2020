@@ -12,9 +12,9 @@ print(data.cat_to_tag)
 # Full bag-of-words / FCNN does not work (accuracy low even with a high dimensionality 430k params)
 Model = ai_bot.ModelFcnn()
 # Preprocess data into bag-of-words
+Model.build(X_train,Y_train, _clean_text)
 X_train_,Y_train_ = Model.get_input_array(X_train,_clean_text,_tensorize),Y_train # bag-of-words (train)
-Model._build(X_train_,Y_train_)
-Model._train(X_train_,Y_train_,epochs = 20,batch_size = 8,validation_split=0.1)
+Model.train(X_train_,Y_train_,epochs = 20,batch_size = 8,validation_split=0.1)
 # %%
 history = Model.model.history.history
 fig, (ax1,ax2) = plt.subplots(1,2)

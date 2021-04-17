@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 import re
+import heapq
 from nltk.corpus import stopwords
 from nltk import word_tokenize
 STOPWORDS = set(stopwords.words('english'))
@@ -82,21 +83,37 @@ class ModelFcnn():
     def __init__(self):
         self.model = None
         self._type = "FCNN"
+        self.VOCAB = {}
 
-    def _bagging(self,X):
-        if X.shape[1] == MAX_SEQUENCE_LENGTH:
-            L = []
-            for i in range(X.shape[0]):
-                a = np.bincount(X[i])
-                L.append(np.append(a,[0 for k in range(MAX_NB_WORDS-len(a))]))
-            return np.array(L)
+    def _bagging(self, corpus):
+        sentence_vectors = []
+        for sentence in corpus:
+            sentence_tokens = word_tokenize(sentence)
+            sent_vec = []
+            for token in self.VOCAB:
+                if token in sentence_tokens:
+                    sent_vec.append(1)
+                else:
+                    sent_vec.append(0)
+            sentence_vectors.append(sent_vec)
+        return np.array(sentence_vectors)
            
     def get_input_array(self,s,_clean_text,_tensorize):
-        sentences = np.array([_clean_text(sentence) for sentence in s])
-        inp = _tensorize(pd.Series(sentences),verbose=0)
-        return self._bagging(inp)
+        corpus = np.array([_clean_text(sentence) for sentence in s])
+        return self._bagging(corpus)
 
-    def _build(self,X,Y):
+    def build(self,X,Y, _clean_text):
+        wordfreq = {}
+        corpus = np.array([_clean_text(sentence) for sentence in X])
+        for sentence in corpus:
+            tokens = word_tokenize(sentence)
+            for token in tokens:
+                if token not in wordfreq.keys():
+                    wordfreq[token] = 1
+                else:
+                    wordfreq[token] += 1
+        self.VOCAB = heapq.nlargest(MAX_NB_WORDS, wordfreq, key=wordfreq.get)
+        
         self.model = Sequential()
         self.model.add(Input(shape=(MAX_NB_WORDS,)))
         self.model.add(Dense(512,activation='relu'))
@@ -111,7 +128,7 @@ class ModelFcnn():
         self.model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
         self.model.summary()
 
-    def _train(self,X,Y,save_file='model/FCNN.h5',epochs = 100,batch_size = 64,validation_split=0.2):
+    def train(self,X,Y,save_file='model/FCNN.h5',epochs = 100,batch_size = 64,validation_split=0.2):
         checkpoint = ModelCheckpoint(save_file, monitor='val_accuracy', verbose=1,
                                      save_best_only=True, mode='max')
         self.model.fit(X, Y, epochs=epochs, batch_size=batch_size,
