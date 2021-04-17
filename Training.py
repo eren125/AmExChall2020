@@ -18,7 +18,7 @@ Model.train(X_train_,Y_train_,epochs = 20,batch_size = 8,validation_split=0.1)
 # %%
 history = Model.model.history.history
 fig, (ax1,ax2) = plt.subplots(1,2)
-fig.suptitle("Training procedure for LSTM model")
+fig.suptitle("Training procedure for FCNN model")
 ax1.set_title('Loss')
 ax1.plot(history['loss'], label='train')
 ax1.plot(history['val_loss'], label='validation')
@@ -112,3 +112,5 @@ plt.xlabel("Deep learning model")
 plt.ylabel("Test accuracy in %")
 plt.ylim(bottom=0,top=100)
 plt.title("Test accuracy comparison between the studied DL models")
+
+# %%

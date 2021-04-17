@@ -8,8 +8,8 @@ _clean_text,_tensorize = data._clean_text,data._tensorize
 X_shape,Y_shape = data.X,data.Y # Need data for the shaped to be used
 
 model_obj_1 = ai_bot.ModelFcnn()
+model_obj_1.build(X_shape,Y_shape, _clean_text)
 X,Y = model_obj_1.get_input_array(X_shape,_clean_text,_tensorize),Y_shape
-model_obj_1._build(X,Y)
 model_obj_1.model.load_weights("model/FCNN.h5")
 
 model_obj_2 = ai_bot.ModelLstm()
